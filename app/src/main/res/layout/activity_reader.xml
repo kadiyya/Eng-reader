@@ -57,6 +57,41 @@
             android:max="1000"
             android:progressTint="@color/accent" />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="16dp">
+
+            <TextView
+                android:id="@+id/heartsText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/comboText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textColor="@color/accent"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/scoreText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textColor="@color/good"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <!-- Prompter area -->
         <FrameLayout
             android:id="@+id/prompterArea"
@@ -173,30 +208,14 @@
                 android:gravity="center"
                 android:orientation="horizontal">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/slowerButton"
-                    style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_width="64dp"
-                    android:layout_height="wrap_content"
-                    android:text="−"
-                    android:textSize="22sp" />
-
                 <TextView
                     android:id="@+id/wpmText"
-                    android:layout_width="96dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:textColor="@color/text_primary"
                     android:textSize="15sp"
                     android:textStyle="bold" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/fasterButton"
-                    style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_width="64dp"
-                    android:layout_height="wrap_content"
-                    android:text="+"
-                    android:textSize="22sp" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/playPauseButton"

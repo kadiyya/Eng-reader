@@ -10,24 +10,24 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 
 /**
- * Listens continuously while the prompter runs and collects the words the
- * user says. Android's recognizer stops after each phrase, so it is restarted
- * until [stop] is called.
+ * Listens continuously while the prompter runs. Android's recognizer stops
+ * after each phrase, so it is restarted until [stop] is called.
+ *
+ * [onPartial] receives the words of the phrase still being spoken (replacing
+ * the previous partial); [onFinal] receives each finished phrase once.
  */
 class SpeechTracker(
     private val context: Context,
     private val onLevel: (Float) -> Unit,
-    private val onWordsChanged: (Int) -> Unit,
+    private val onPartial: (List<String>) -> Unit,
+    private val onFinal: (List<String>) -> Unit,
 ) : RecognitionListener {
 
     private val handler = Handler(Looper.getMainLooper())
     private var recognizer: SpeechRecognizer? = null
     private var active = false
 
-    private val committedWords = mutableListOf<String>()
     private var partialWords = emptyList<String>()
-
-    val heardWords: List<String> get() = committedWords + partialWords
 
     private val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -58,12 +58,6 @@ class SpeechTracker(
         onLevel(0f)
     }
 
-    fun reset() {
-        committedWords.clear()
-        partialWords = emptyList()
-        onWordsChanged(0)
-    }
-
     fun destroy() {
         stop()
         recognizer?.destroy()
@@ -86,8 +80,9 @@ class SpeechTracker(
     }
 
     private fun commitPartial() {
-        committedWords.addAll(partialWords)
+        val words = partialWords
         partialWords = emptyList()
+        if (words.isNotEmpty()) onFinal(words)
     }
 
     private fun extractWords(bundle: Bundle?): List<String> {
@@ -102,7 +97,7 @@ class SpeechTracker(
         val words = extractWords(partialResults)
         if (words.isNotEmpty()) {
             partialWords = words
-            onWordsChanged(heardWords.size)
+            onPartial(words)
         }
     }
 
@@ -110,7 +105,6 @@ class SpeechTracker(
         val words = extractWords(results)
         if (words.isNotEmpty()) partialWords = words
         commitPartial()
-        onWordsChanged(heardWords.size)
         scheduleRestart(50)
     }
 
@@ -151,19 +145,3 @@ fun normalizeWords(text: String): List<String> =
         .split(Regex("[^a-z0-9']+"))
         .map { it.trim('\'') }
         .filter { it.isNotEmpty() }
-
-/** Share of the target words that were heard, ignoring order (0..100). */
-fun accuracyPercent(target: String, heard: List<String>): Int {
-    val targetWords = normalizeWords(target)
-    if (targetWords.isEmpty()) return 0
-    val pool = heard.groupingBy { it }.eachCount().toMutableMap()
-    var matched = 0
-    for (word in targetWords) {
-        val left = pool[word] ?: 0
-        if (left > 0) {
-            matched++
-            pool[word] = left - 1
-        }
-    }
-    return matched * 100 / targetWords.size
-}

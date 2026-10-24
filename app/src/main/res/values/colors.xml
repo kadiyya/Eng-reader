@@ -9,4 +9,5 @@
     <color name="accent_dim">#33FFB547</color>
     <color name="good">#4ADE80</color>
     <color name="bad">#F87171</color>
+    <color name="missed">#B4544F</color>
 </resources>

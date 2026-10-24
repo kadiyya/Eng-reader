@@ -3,9 +3,9 @@ package com.kadiyya.engreader
 import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
-import android.view.LayoutInflater
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -15,57 +15,62 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 class MainActivity : AppCompatActivity() {
 
     private lateinit var progress: Progress
-    private lateinit var levelContainer: LinearLayout
-    private lateinit var progressText: TextView
+    private lateinit var mapView: MapView
+    private lateinit var mapScroll: ScrollView
+    private var scrolledToCurrent = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         progress = Progress(this)
-        levelContainer = findViewById(R.id.levelContainer)
-        progressText = findViewById(R.id.progressText)
+        mapView = findViewById(R.id.mapView)
+        mapScroll = findViewById(R.id.mapScroll)
+        mapView.onLevelClick = ::onLevelClick
         findViewById<MaterialButton>(R.id.freeModeButton).setOnClickListener { showFreeModeDialog() }
     }
 
     override fun onResume() {
         super.onResume()
-        renderLevels()
+        val total = Worlds.levels(this).size
+        findViewById<TextView>(R.id.streakText).text = "🔥 ${progress.streak()}"
+        findViewById<TextView>(R.id.starsText).text = "★ ${progress.totalStars()}/${total * 3}"
+        findViewById<TextView>(R.id.scoreText).text = "🏆 ${progress.totalScore()}"
+        mapView.setData(Worlds.all(this), progress.unlockedLevel, progress::stars)
+        mapScroll.post {
+            if (!scrolledToCurrent) {
+                scrolledToCurrent = true
+                mapScroll.scrollTo(0, (mapView.currentNodeY() - mapScroll.height / 2.5f).toInt().coerceAtLeast(0))
+            }
+        }
     }
 
-    private fun renderLevels() {
-        levelContainer.removeAllViews()
-        val inflater = LayoutInflater.from(this)
-        val unlocked = progress.unlockedLevel
-        progressText.text = "İlerleme: ${progress.completedCount()} / ${Levels.all.size} seviye tamamlandı"
-
-        for (level in Levels.all) {
-            val item = inflater.inflate(R.layout.item_level, levelContainer, false)
-            val isLocked = level.number > unlocked
-            item.findViewById<TextView>(R.id.levelNumber).text = level.number.toString()
-            item.findViewById<TextView>(R.id.levelTitle).text = level.title
-            item.findViewById<TextView>(R.id.levelMeta).text =
-                "${level.stage} · ${level.wpm} kelime/dk · ${level.wordCount} kelime"
-            item.findViewById<TextView>(R.id.levelStatus).text = when {
-                isLocked -> "🔒"
-                progress.isCompleted(level.number) -> "★".repeat(progress.stars(level.number)).ifEmpty { "✓" }
-                else -> "▶"
-            }
-            if (isLocked) {
-                item.setBackgroundResource(R.drawable.card_locked_bg)
-                item.alpha = 0.55f
-                item.setOnClickListener {
-                    Toast.makeText(this, "Önce önceki seviyeyi tamamla", Toast.LENGTH_SHORT).show()
-                }
-            } else {
-                item.setOnClickListener {
-                    startActivity(
-                        Intent(this, ReaderActivity::class.java)
-                            .putExtra(ReaderActivity.EXTRA_LEVEL, level.number)
-                    )
-                }
-            }
-            levelContainer.addView(item)
+    private fun onLevelClick(level: Level) {
+        if (level.number > progress.unlockedLevel) {
+            Toast.makeText(this, "Kilitli! Önce ${level.number - 1}. seviyeyi geç.", Toast.LENGTH_SHORT).show()
+            return
         }
+        val world = Worlds.world(this, level)
+        val stars = progress.stars(level.number)
+        val minutes = level.wordCount.toFloat() / level.wpm
+        val message = buildString {
+            append("${world.book}\n${world.author}\n\n")
+            append("⚡ Hız: ${level.wpm} kelime/dk (giderek hızlanır)\n")
+            append("📖 ${level.wordCount} kelime · yaklaşık ${"%.1f".format(minutes)} dk\n")
+            append("❤️ 3 can · okunmayan her satır bir can götürür\n")
+            append("🎯 Geçmek için: en az %${if (level.boss) 70 else 60} doğruluk\n")
+            if (stars > 0) append("\nEn iyi: ${"★".repeat(stars)}${"☆".repeat(3 - stars)} · ${progress.bestScore(level.number)} puan")
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle((if (level.boss) "👑 BOSS · " else "Seviye ${level.number} · ") + level.title)
+            .setMessage(message)
+            .setNegativeButton("Vazgeç", null)
+            .setPositiveButton("Başla") { _, _ ->
+                startActivity(
+                    Intent(this, ReaderActivity::class.java)
+                        .putExtra(ReaderActivity.EXTRA_LEVEL, level.number)
+                )
+            }
+            .show()
     }
 
     private fun showFreeModeDialog() {
@@ -87,7 +92,7 @@ class MainActivity : AppCompatActivity() {
             )
         }
         MaterialAlertDialogBuilder(this)
-            .setTitle("Serbest mod")
+            .setTitle("Serbest mod (${ReaderActivity.FREE_MODE_WPM} k/dk)")
             .setView(wrapper)
             .setNegativeButton("İptal", null)
             .setPositiveButton("Oku") { _, _ ->
